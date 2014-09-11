@@ -2,6 +2,7 @@ if not window.plugins
     window.plugins = {}
 
 window.plugins.sample =
+    name: "Sample Coffee"
     active: true
     onAdd:
         ###
@@ -18,3 +19,13 @@ window.plugins.sample =
         ###
         action: (node) ->
             node.setAttribute 'data-plugin', true
+    ###
+    * Called when plugin is activated
+    ###
+    onActivate: ->
+        console.log 'Plugin sample activated'
+    ###
+    * Called when plugin is deactivated
+    ###
+    onDeactivate: ->
+        console.log 'Plugin sample deactivated'

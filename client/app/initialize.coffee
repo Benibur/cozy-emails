@@ -18,46 +18,7 @@ window.onload = ->
     window.t = polyglot.t.bind polyglot
 
     # init plugins
-    if not window.plugins?
-        window.plugins = {}
-    if MutationObserver?
-        # Observes DOM mutation to see if a plugin should be called
-        observer = new MutationObserver (mutations) ->
-            checkNode = (node) ->
-                if node.nodeType isnt Node.ELEMENT_NODE
-                    return
-
-                for own pluginName, pluginConf of window.plugins
-                    if pluginConf.active
-                        if pluginConf.onAdd?
-                            if pluginConf.onAdd.condition node
-                                pluginConf.onAdd.action node
-
-            check = (mutation) ->
-                nodes = Array.prototype.slice.call mutation.addedNodes
-                checkNode node for node in nodes
-
-            check mutation for mutation in mutations
-
-        config =
-            attributes: false
-            childList: true
-            characterData: false
-            subtree: true
-        observer.observe document.body, config
-
-    else
-        # Dirty fallback for IE
-        # @TODO use polyfill ???
-        setInterval ->
-            for own pluginName, pluginConf of window.plugins
-                if pluginConf.active
-                    if pluginConf.onAdd?
-                        if pluginConf.onAdd.condition document.body
-                            pluginConf.onAdd.action document.body
-
-        , 200
-
+    require("./utils/PluginUtils").init()
 
     # Flux initialization (must be called at the begining)
     AccountStore  = require './stores/AccountStore'
