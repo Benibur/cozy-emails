@@ -191,9 +191,27 @@ module.exports = React.createClass
 
     getToolboxRender: (id, prepared) ->
 
+        prev = @props.message.get 'prev'
+        next = @props.message.get 'next'
+        if prev?
+            prevUrl = @buildUrl
+                direction: 'second'
+                action: 'message'
+                parameters: prev
+        if next?
+            nextUrl = @buildUrl
+                direction: 'second'
+                action: 'message'
+                parameters: next
+
+
         div className: 'messageToolbox',
             div className: 'btn-toolbar', role: 'toolbar',
                 div className: 'btn-group btn-group-sm btn-group-justified',
+                    if prevUrl?
+                        div className: 'btn-group btn-group-sm',
+                            a className: 'btn btn-default', href: prevUrl,
+                                i className: 'fa fa-arrow-left'
                     div className: 'btn-group btn-group-sm',
                         button className: 'btn btn-default', type: 'button', onClick: @onReply,
                             span className: 'fa fa-reply'
@@ -255,6 +273,10 @@ module.exports = React.createClass
                                 @getMailboxRender mailbox, key, true
                             .toJS()
                             li role: 'presentation', className: 'divider'
+                    if nextUrl?
+                        div className: 'btn-group btn-group-sm',
+                            a className: 'btn btn-default', href: nextUrl,
+                                i className: 'fa fa-arrow-right'
 
 
     getMailboxRender: (mailbox, key, conversation) ->

@@ -98,8 +98,8 @@ module.exports = Application = React.createClass
                     Alert { alert }
                     ToastContainer toasts: @state.toasts
 
-                    # The quick actions bar 
-                    Topbar 
+                    # The quick actions bar
+                    Topbar
                         layout: @props.router.current
                         mailboxes: @state.mailboxes
                         selectedAccount: @state.selectedAccount
@@ -232,6 +232,15 @@ module.exports = Application = React.createClass
             if messageID = panelInfo.parameters.messageID
                 message = MessageStore.getByID messageID
 
+            # Add previous and next message id to every message in the conversation
+            conversation = MessageStore.getMessagesByConversation messageID
+            for message, key in conversation
+                if message?
+                    id = message.get 'id'
+                    message = message.set('prev', MessageStore.getPreviousMessageID id)
+                    message = message.set('next', MessageStore.getNextMessageID id)
+                    conversation[key] = message
+
             return Conversation
                 layout            : layout
                 settings          : @state.settings
@@ -240,7 +249,7 @@ module.exports = Application = React.createClass
                 selectedAccount   : @state.selectedAccount
                 selectedMailboxID : @state.selectedMailboxID
                 message           : MessageStore.getByID messageID
-                conversation      : MessageStore.getMessagesByConversation messageID
+                conversation      : conversation
 
         # -- Generates the new message composition form
         else if panelInfo.action is 'compose'

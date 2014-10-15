@@ -47,6 +47,31 @@ class MessageStore extends Store
     _unreadCounts = Immutable.Map()
 
 
+    _view = Immutable.Sequence()
+    _currentMailbox = null
+
+    # Create a view of messages in current mailbox according to filters and
+    # sort criteria
+    _getView: ->
+        _view = _messages.filter (message) ->
+            return _currentMailbox in Object.keys message.get 'mailboxIDs'
+        .sort(__getSortFunction _sortField)
+
+        if _filter isnt MessageFilter.ALL
+            if _filter is MessageFilter.FLAGGED
+                filterFunction = (message) ->
+                    return MessageFlags.FLAGGED in message.get 'flags'
+            else if _filter is MessageFilter.UNSEEN
+                filterFunction = (message) ->
+                    return MessageFlags.SEEN not in message.get 'flags'
+        if filterFunction?
+            _view = _view.filter filterFunction
+
+        if _quickFilter isnt ''
+            re = new RegExp _quickFilter, 'i'
+            _view = _view.filter (message) ->
+                return re.test(message.get 'subject')
+
     ###
         Defines here the action handlers.
     ###
@@ -84,6 +109,7 @@ class MessageStore extends Store
                 messages = messages.messages.sort __sortFunction
 
             onReceiveRawMessage message, true for message in messages
+            @_getView()
             @emit 'change'
 
         handle ActionTypes.REMOVE_ACCOUNT, (accountID) ->
@@ -114,15 +140,18 @@ class MessageStore extends Store
 
         handle ActionTypes.LIST_FILTER, (filter) ->
             _filter = filter
+            @_getView()
             @emit 'change'
 
         handle ActionTypes.LIST_QUICK_FILTER, (filter) ->
             _quickFilter = filter
+            @_getView()
             @emit 'change'
 
         handle ActionTypes.LIST_SORT, (sort) ->
             _sortField = sort.field
             _sortOrder = sort.order
+            @_getView()
             @emit 'change'
 
 
@@ -165,30 +194,28 @@ class MessageStore extends Store
     * @return {Array}
     ###
     getMessagesByMailbox: (mailboxID, first = null, last = null) ->
-        sequence = _messages.filter (message) ->
-            return mailboxID in Object.keys message.get 'mailboxIDs'
-        .sort(__getSortFunction _sortField)
 
-        if _filter isnt MessageFilter.ALL
-            if _filter is MessageFilter.FLAGGED
-                filterFunction = (message) ->
-                    return MessageFlags.FLAGGED in message.get 'flags'
-            else if _filter is MessageFilter.UNSEEN
-                filterFunction = (message) ->
-                    return MessageFlags.SEEN not in message.get 'flags'
-        if filterFunction?
-            sequence = sequence.filter filterFunction
-
-        if _quickFilter isnt ''
-            re = new RegExp _quickFilter, 'i'
-            sequence = sequence.filter (message) ->
-                return re.test(message.get 'subject')
+        if mailboxID isnt _currentMailbox
+            _currentMailbox = mailboxID
+            @_getView()
 
         if first? and last?
-            sequence = sequence.slice first, last
+            sequence = _view.slice first, last
+            return sequence.toOrderedMap()
+        else
+            return _view
 
-        # sequences are lazy so we need .toOrderedMap() to actually execute it
-        return sequence.toOrderedMap()
+    getPreviousMessageID: (messageID) ->
+        keys = _view.keySeq()
+        index = keys.indexOf messageID
+        if index?
+            return keys.get --index
+
+    getNextMessageID: (messageID) ->
+        keys = _view.keySeq()
+        index = keys.indexOf messageID
+        if index?
+            return keys.get ++index
 
     getMessagesCounts: ->
         return _counts
