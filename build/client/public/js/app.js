@@ -858,7 +858,7 @@ _getNotification = function(target, messages, action, err) {
   }
   return t("" + type + " " + action + " " + ok, {
     error: errMsg,
-    subject: subject,
+    subject: subject || '',
     smart_count: smart_count
   });
 };
@@ -1180,6 +1180,9 @@ module.exports = React.createClass({
         allowEmpty: true
       },
       imapTLS: {
+        allowEmpty: true
+      },
+      imapLogin: {
         allowEmpty: true
       },
       smtpServer: {
@@ -2134,6 +2137,7 @@ module.exports = AccountConfigMain = React.createClass({
       value = _ref2[key];
       state[key] = value;
     }
+    state.imapAdvanced = false;
     state.smtpAdvanced = false;
     return state;
   },
@@ -2253,7 +2257,17 @@ module.exports = AccountConfigMain = React.createClass({
           return _this._onServerParam(event.target, 'imap', 'tls');
         };
       })(this)
-    }), FieldSet({
+    }), div({
+      className: "form-group"
+    }, a({
+      className: "col-sm-3 col-sm-offset-2 control-label clickable",
+      onClick: this.toggleIMAPAdvanced
+    }, t("account imap " + (this.state.imapAdvanced ? 'hide' : 'show') + " advanced"))), this.state.imapAdvanced ? AccountInput({
+      name: 'imapLogin',
+      value: this.linkState('imapLogin').value,
+      errors: this.state.errors,
+      errorField: ['imap', 'imapServer', 'imapPort', 'imapLogin']
+    }) : void 0, FieldSet({
       text: t('account sending server')
     }), AccountInput({
       name: 'smtpServer',
@@ -3678,7 +3692,7 @@ module.exports = {
 });
 
 ;require.register("components/compose", function(exports, require, module) {
-var AccountPicker, Compose, ComposeActions, ComposeEditor, FilePicker, LayoutActionCreator, MailsInput, MessageActionCreator, RouterMixin, Spinner, a, button, classer, div, form, h3, i, img, input, label, li, messageUtils, span, textarea, ul, _ref, _ref1;
+var AccountPicker, Compose, ComposeActions, ComposeEditor, FilePicker, FileUtils, LayoutActionCreator, MailsInput, MessageActionCreator, MessageUtils, RouterMixin, Spinner, Tooltips, a, button, classer, div, form, h3, i, img, input, label, li, span, textarea, ul, _ref, _ref1, _ref2;
 
 _ref = React.DOM, div = _ref.div, h3 = _ref.h3, a = _ref.a, i = _ref.i, textarea = _ref.textarea, form = _ref.form, label = _ref.label, button = _ref.button;
 
@@ -3694,9 +3708,11 @@ Spinner = require('./basic_components').Spinner;
 
 AccountPicker = require('./account_picker');
 
-ComposeActions = require('../constants/app_constants').ComposeActions;
+_ref2 = require('../constants/app_constants'), ComposeActions = _ref2.ComposeActions, Tooltips = _ref2.Tooltips;
 
-messageUtils = require('../utils/message_utils');
+FileUtils = require('../utils/file_utils');
+
+MessageUtils = require('../utils/message_utils');
 
 LayoutActionCreator = require('../actions/layout_action_creator');
 
@@ -3722,7 +3738,7 @@ module.exports = Compose = React.createClass({
     return !(_.isEqual(nextState, this.state)) || !(_.isEqual(nextProps, this.props));
   },
   render: function() {
-    var classBcc, classCc, classInput, classLabel, closeUrl, focusEditor, labelSend, onCancel, toggleFullscreen, _ref2, _ref3;
+    var classBcc, classCc, classInput, classLabel, closeUrl, focusEditor, labelSend, onCancel, toggleFullscreen, _ref3, _ref4;
     if (!this.props.accounts) {
       return;
     }
@@ -3767,7 +3783,7 @@ module.exports = Compose = React.createClass({
     }, i({
       className: 'fa fa-compress'
     })), h3({
-      'data-message-id': ((_ref2 = this.props.message) != null ? _ref2.get('id') : void 0) || ''
+      'data-message-id': ((_ref3 = this.props.message) != null ? _ref3.get('id') : void 0) || ''
     }, this.state.subject || t('compose')), form({
       className: 'form-compose',
       method: 'POST'
@@ -3832,7 +3848,7 @@ module.exports = Compose = React.createClass({
       htmlFor: 'compose-subject',
       className: classLabel
     }, t("compose content")), ComposeEditor({
-      messageID: (_ref3 = this.props.message) != null ? _ref3.get('id') : void 0,
+      messageID: (_ref4 = this.props.message) != null ? _ref4.get('id') : void 0,
       html: this.linkState('html'),
       text: this.linkState('text'),
       accounts: this.props.accounts,
@@ -3935,12 +3951,6 @@ module.exports = Compose = React.createClass({
             messageID = _this.state.id;
             return MessageActionCreator["delete"]({
               messageID: messageID
-            }, function(error) {
-              if (error == null) {
-                return LayoutActionCreator.notify(t('compose draft deleted'), {
-                  autoclose: true
-                });
-              }
             });
           };
         })(this), 0);
@@ -3984,7 +3994,7 @@ module.exports = Compose = React.createClass({
     }
   },
   getInitialState: function(forceDefault) {
-    var account, key, message, state, value, _ref2;
+    var account, key, message, state, value, _ref3;
     if (message = this.props.message) {
       state = {
         composeInHTML: this.props.settings.get('composeInHTML')
@@ -3992,15 +4002,15 @@ module.exports = Compose = React.createClass({
       if ((message.get('html') == null) && message.get('text')) {
         state.conposeInHTML = false;
       }
-      _ref2 = message.toJS();
-      for (key in _ref2) {
-        value = _ref2[key];
+      _ref3 = message.toJS();
+      for (key in _ref3) {
+        value = _ref3[key];
         state[key] = value;
       }
       state.attachments = message.get('attachments');
     } else {
       account = this.props.accounts[this.props.selectedAccountID];
-      state = messageUtils.makeReplyMessage(account.login, this.props.inReplyTo, this.props.action, this.props.settings.get('composeInHTML'), account.signature);
+      state = MessageUtils.makeReplyMessage(account.login, this.props.inReplyTo, this.props.action, this.props.settings.get('composeInHTML'), account.signature);
       if (state.accountID == null) {
         state.accountID = this.props.selectedAccountID;
       }
@@ -4074,8 +4084,8 @@ module.exports = Compose = React.createClass({
     if (valid) {
       if (this.state.composeInHTML) {
         message.html = this._cleanHTML(this.state.html);
-        message.text = messageUtils.cleanReplyText(message.html);
-        message.html = messageUtils.wrapReplyHtml(message.html);
+        message.text = MessageUtils.cleanReplyText(message.html);
+        message.html = MessageUtils.wrapReplyHtml(message.html);
       } else {
         message.text = this.state.text.trim();
       }
@@ -4212,13 +4222,13 @@ module.exports = Compose = React.createClass({
     }
   },
   onToggleCc: function(e) {
-    var focus, toggle, _i, _len, _ref2;
+    var focus, toggle, _i, _len, _ref3;
     toggle = function(e) {
       return e.classList.toggle('shown');
     };
-    _ref2 = this.getDOMNode().querySelectorAll('.compose-cc');
-    for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-      e = _ref2[_i];
+    _ref3 = this.getDOMNode().querySelectorAll('.compose-cc');
+    for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+      e = _ref3[_i];
       toggle(e);
     }
     focus = !this.state.ccShown ? 'cc' : '';
@@ -4228,13 +4238,13 @@ module.exports = Compose = React.createClass({
     });
   },
   onToggleBcc: function(e) {
-    var focus, toggle, _i, _len, _ref2;
+    var focus, toggle, _i, _len, _ref3;
     toggle = function(e) {
       return e.classList.toggle('shown');
     };
-    _ref2 = this.getDOMNode().querySelectorAll('.compose-bcc');
-    for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-      e = _ref2[_i];
+    _ref3 = this.getDOMNode().querySelectorAll('.compose-bcc');
+    for (_i = 0, _len = _ref3.length; _i < _len; _i++) {
+      e = _ref3[_i];
       toggle(e);
     }
     focus = !this.state.bccShown ? 'bcc' : '';
@@ -4269,18 +4279,14 @@ ComposeEditor = React.createClass({
   shouldComponentUpdate: function(nextProps, nextState) {
     return !(_.isEqual(nextState, this.state)) || !(_.isEqual(nextProps, this.props));
   },
+  onHTMLChange: function(event) {
+    return this.props.html.requestChange(this.refs.html.getDOMNode().innerHTML);
+  },
+  onTextChange: function(event) {
+    return this.props.text.requestChange(this.refs.content.getDOMNode().value);
+  },
   render: function() {
-    var classFolded, classTarget, onHTMLChange, onTextChange;
-    onHTMLChange = (function(_this) {
-      return function(event) {
-        return _this.props.html.requestChange(_this.refs.html.getDOMNode().innerHTML);
-      };
-    })(this);
-    onTextChange = (function(_this) {
-      return function(event) {
-        return _this.props.text.requestChange(_this.refs.content.getDOMNode().value);
-      };
-    })(this);
+    var classFolded, classTarget;
     if (this.props.settings.get('composeOnTop')) {
       classFolded = 'folded';
     } else {
@@ -4288,27 +4294,42 @@ ComposeEditor = React.createClass({
     }
     classTarget = this.state.target ? 'target' : '';
     if (this.props.composeInHTML) {
-      return div({
+      return div(null, div({
+        className: "editor-actions"
+      }, a({
+        onClick: this.choosePhoto
+      }, i({
+        className: 'fa fa-image',
+        'aria-describedby': Tooltips.COMPOSE_IMAGE,
+        'data-tooltip-direction': 'top'
+      })), a({
+        onClick: this.choosePhotoMock
+      }, i({
+        className: 'fa fa-cloud-download',
+        'aria-describedby': Tooltips.COMPOSE_MOCK,
+        'data-tooltip-direction': 'top'
+      }))), div({
         className: "form-control rt-editor " + classFolded + " " + classTarget,
         ref: 'html',
         contentEditable: true,
         onKeyDown: this.onKeyDown,
-        onInput: onHTMLChange,
+        onInput: this.onHTMLChange,
         onDragOver: this.allowDrop,
         onDragEnter: this.onDragEnter,
         onDragLeave: this.onDragLeave,
         onDrop: this.handleFiles,
-        onBlur: onHTMLChange,
+        onBlur: this.onHTMLChange,
         dangerouslySetInnerHTML: {
           __html: this.state.html.value
         }
-      });
+      }));
     } else {
       return textarea({
         className: "editor " + classTarget,
         ref: 'content',
         onKeyDown: this.onKeyDown,
-        onChange: onTextChange,
+        onChange: this.onTextChange,
+        onBlur: this.onTextChange,
         defaultValue: this.state.text.value,
         onDragOver: this.allowDrop,
         onDragEnter: this.onDragEnter,
@@ -4437,9 +4458,9 @@ ComposeEditor = React.createClass({
     }
   },
   setCursorPosition: function() {
-    var account, node, range, selection, signatureNode, _ref2;
+    var account, node, range, selection, signatureNode, _ref3;
     if (this.props.focus) {
-      node = (_ref2 = this.refs.html) != null ? _ref2.getDOMNode() : void 0;
+      node = (_ref3 = this.refs.html) != null ? _ref3.getDOMNode() : void 0;
       if (node != null) {
         document.querySelector(".rt-editor").focus();
         if (!this.props.settings.get('composeOnTop')) {
@@ -4503,7 +4524,7 @@ ComposeEditor = React.createClass({
     }
   },
   handleFiles: function(e) {
-    var file, fileReader, files, id, _i, _len;
+    var file, files, id, signature, _i, _len;
     e.preventDefault();
     files = e.target.files || e.dataTransfer.files;
     this.props.getPicker().addFiles(files);
@@ -4514,26 +4535,88 @@ ComposeEditor = React.createClass({
           id = "editor-img-" + (new Date());
           img = "<img data-src='" + file.name + "' id='" + id + "'>";
           if (!document.activeElement.classList.contains('rt-editor')) {
-            document.querySelector('.rt-editor').innerHTML += img;
+            signature = document.getElementById('signature');
+            if (signature != null) {
+              signature.previousElementSibling.innerHTML += img;
+            } else {
+              document.querySelector('.rt-editor').innerHTML += img;
+            }
           } else {
             document.execCommand('insertHTML', false, img);
           }
-          fileReader = new FileReader();
-          fileReader.readAsDataURL(file);
-          fileReader.onload = function() {
-            img = document.getElementById(id);
-            if (img) {
-              img.removeAttribute('id');
-              img.removeAttribute('class');
-              return img.src = fileReader.result;
-            }
-          };
+          FileUtils.fileToDataURI(file, (function(_this) {
+            return function(result) {
+              img = document.getElementById(id);
+              if (img) {
+                img.removeAttribute('id');
+                img.src = result;
+                return _this.onHTMLChange();
+              }
+            };
+          })(this));
         }
       }
     }
     return this.setState({
       target: false
     });
+  },
+  choosePhoto: function() {
+    var intent, timeout;
+    intent = {
+      type: 'pickObject',
+      params: {
+        objectType: 'singlePhoto',
+        isCropped: true,
+        proportion: 1,
+        maxWidth: 10,
+        minWidth: 10
+      }
+    };
+    timeout = 30000;
+    return window.intentManager.send('nameSpace', intent, timeout).then(this.choosePhoto_answer, function(error) {
+      return console.log('response in error : ', error);
+    });
+  },
+  choosePhotoMock: function() {
+    var message;
+    message = {
+      data: {
+        newPhotoChosen: true,
+        name: 'mockPhoto.gif',
+        dataUrl: 'data:image/gif;base64,R0lGOD lhCwAOAMQfAP////7+/vj4+Hh4eHd3d/v7+/Dw8HV1dfLy8ubm5vX19e3t7fr 6+nl5edra2nZ2dnx8fMHBwYODg/b29np6eujo6JGRkeHh4eTk5LCwsN3d3dfX 13Jycp2dnevr6////yH5BAEAAB8ALAAAAAALAA4AAAVq4NFw1DNAX/o9imAsB tKpxKRd1+YEWUoIiUoiEWEAApIDMLGoRCyWiKThenkwDgeGMiggDLEXQkDoTh CKNLpQDgjeAsY7MHgECgx8YR8oHwNHfwADBACGh4EDA4iGAYAEBAcQIg0Dk gcEIQA7'
+      }
+    };
+    return this.choosePhoto_answer(message);
+  },
+  choosePhoto_answer: function(message) {
+    var answer, blob, data, picker, signature;
+    answer = message.data;
+    if (answer.newPhotoChosen) {
+      data = FileUtils.dataURItoBlob(answer.dataUrl);
+      blob = new Blob([
+        data.blob, {
+          type: data.mime
+        }
+      ]);
+      blob.name = answer.name;
+      picker = this.props.getPicker();
+      picker.addFiles([blob]);
+      if (document.activeElement.classList.contains('rt-editor')) {
+        document.execCommand('insertHTML', false, '<img src="' + answer.dataUrl + '" data-src="' + answer.name + '">');
+      } else {
+        img = document.createElement('img');
+        img.src = answer.dataUrl;
+        img.dataset.src = answer.name;
+        signature = document.getElementById('signature');
+        if (signature != null) {
+          signature.parentNode.insertBefore(img, signature);
+        } else {
+          document.querySelector('.rt-editor').appendChild(img);
+        }
+      }
+      return this.onHTMLChange();
+    }
   }
 });
 });
@@ -5927,7 +6010,9 @@ module.exports = React.createClass({
         progress: progress
       }))) : this.state.isRefreshStarted ? span({
         key: 'sync-box'
-      }, t("menu refresh initializing")) : void 0
+      }, t("menu refresh initializing")) : span({
+        key: 'waiting'
+      }, t("menu refresh waiting"))
     ]));
   },
   getRefreshInfo: function() {
@@ -6313,6 +6398,7 @@ MessageList = React.createClass({
       ref: 'listToolboxActions',
       mailboxes: this.props.mailboxes,
       onMark: this.onMark,
+      onConversationDelete: this.onConversationDelete,
       onConversationMark: this.onConversationMark,
       onConversationMove: this.onConversationMove,
       displayConversations: this.props.displayConversations,
@@ -6450,7 +6536,7 @@ MessageList = React.createClass({
     }
   },
   onConversationDelete: function() {
-    return onConversationDelete(true);
+    return this.onDelete(true);
   },
   onDelete: function(applyToConversation) {
     var msg, noConfirm, options;
@@ -9020,7 +9106,6 @@ module.exports = React.createClass({
       mailboxes: this.props.mailboxes,
       isSeen: isSeen,
       isFlagged: isFlagged,
-      mailboxID: this.props.selectedMailboxID,
       messageID: this.props.message.get('id'),
       message: this.props.message,
       onMark: this.props.onMark,
@@ -9055,6 +9140,20 @@ FlagsConstants = require('../constants/app_constants').FlagsConstants;
 
 module.exports = ToolboxActions = React.createClass({
   displayName: 'ToolboxActions',
+  propTypes: {
+    direction: React.PropTypes.string.isRequired,
+    displayConversations: React.PropTypes.bool.isRequired,
+    isFlagged: React.PropTypes.bool,
+    isSeen: React.PropTypes.bool,
+    mailboxes: React.PropTypes.object.isRequired,
+    message: React.PropTypes.object,
+    messageID: React.PropTypes.string,
+    onConversationDelete: React.PropTypes.func.isRequired,
+    onConversationMark: React.PropTypes.func.isRequired,
+    onConversationMove: React.PropTypes.func.isRequired,
+    onHeaders: React.PropTypes.func,
+    onMark: React.PropTypes.func.isRequired
+  },
   shouldComponentUpdate: function(nextProps, nextState) {
     return !(_.isEqual(nextState, this.state)) || !(_.isEqual(nextProps, this.props));
   },
@@ -9491,7 +9590,9 @@ module.exports = {
     ACCOUNT_PARAMETERS: 'TOOLTIP_ACCOUNT_PARAMETERS',
     DELETE_SELECTION: 'TOOLTIP_DELETE_SELECTION',
     FILTER: 'TOOLTIP_FILTER',
-    QUICK_FILTER: 'TOOLTIP_QUICK_FILTER'
+    QUICK_FILTER: 'TOOLTIP_QUICK_FILTER',
+    COMPOSE_IMAGE: 'TOOLTIP_COMPOSE_IMAGE',
+    COMPOSE_MOCK: 'TOOLTIP_COMPOSE_MOCK'
   }
 };
 });
@@ -9499,7 +9600,7 @@ module.exports = {
 ;require.register("initialize", function(exports, require, module) {
 window.onerror = function(msg, url, line, col, error) {
   var data, exception, xhr;
-  console.error(msg, url, line, col, error);
+  console.error(msg, url, line, col, error, error != null ? error.stack : void 0);
   exception = (error != null ? error.toString() : void 0) || msg;
   if (exception !== window.lastError) {
     data = {
@@ -9525,7 +9626,7 @@ window.onerror = function(msg, url, line, col, error) {
 };
 
 window.onload = function() {
-  var AccountStore, Application, ContactStore, LayoutActionCreator, LayoutStore, MessageStore, PluginUtils, Router, SearchStore, SettingsStore, application, data, e, exception, locale, referencePoint, xhr;
+  var AccountStore, Application, ContactStore, IntentManager, LayoutActionCreator, LayoutStore, MessageStore, PluginUtils, Router, SearchStore, SettingsStore, application, data, e, exception, locale, referencePoint, xhr;
   try {
     window.__DEV__ = window.location.hostname === 'localhost';
     referencePoint = 0;
@@ -9568,6 +9669,8 @@ window.onload = function() {
     PluginUtils.merge(window.settings.plugins);
     PluginUtils.init();
     window.cozyMails.setSetting('plugins', window.settings.plugins);
+    IntentManager = require("./utils/intent_manager");
+    window.intentManager = new IntentManager();
     AccountStore = require('./stores/account_store');
     ContactStore = require('./stores/contact_store');
     LayoutStore = require('./stores/layout_store');
@@ -10283,7 +10386,6 @@ module.exports = {
   "compose error no dest": "Sie können keine Nachricht an Niemanden senden",
   "compose error no subject": "Bitte vergeben Sie einen Betreff",
   "compose confirm keep draft": "Nachricht wurde nicht gesandet, Entwurft behalten?",
-  "compose draft deleted": "Entwurf gelöscht",
   "compose wrong email format": "Die vergebene E-Mail Adresse hat kein geeignes Format: %{address}.",
   "compose forward header": "Gesendete Nachricht",
   "compose forward subject": "Betreff:",
@@ -10303,6 +10405,7 @@ module.exports = {
   "menu refresh label": "Refresh",
   "menu refresh initializing": "Initializing...",
   "menu refresh cleaning": "Cleaning...",
+  "menu refresh waiting": "Waiting for server...",
   "menu refresh indicator": "%{account}: %{mailbox} (%{progress}%)",
   "menu last refresh": "Last refresh on %{date}.",
   "list empty": "Keine E-Mail in diesem Postfach.",
@@ -10595,7 +10698,6 @@ module.exports = {
   "compose error no dest": "You can not send a message to nobody",
   "compose error no subject": "Please set a subject",
   "compose confirm keep draft": "Message not sent, keep the draft?",
-  "compose draft deleted": "Draft deleted",
   "compose wrong email format": "The given email is unproperly formatted: %{address}.",
   "compose forward header": "Forwarded message",
   "compose forward subject": "Subject:",
@@ -10615,6 +10717,7 @@ module.exports = {
   "menu refresh label": "Refresh",
   "menu refresh initializing": "Initializing...",
   "menu refresh cleaning": "Cleaning...",
+  "menu refresh waiting": "Waiting for server...",
   "menu refresh indicator": "%{account}: %{mailbox} (%{progress}%)",
   "menu last refresh": "Last refresh on %{date}.",
   "list empty": "No email in this box.",
@@ -10941,7 +11044,6 @@ module.exports = {
   "compose error no dest": "Vous n'avez pas saisi de destinataires",
   "compose error no subject": "Vous n'avez pas saisi de sujet",
   "compose confirm keep draft": "Vous n'avez pas envoyé le message, voulez-vous conserver le brouillon ?",
-  "compose draft deleted": "Brouillon supprimé",
   "compose wrong email format": "L'addresse mail donnée n'est pas bien formattée : %{address}.",
   "compose forward header": "Message transféré",
   "compose forward subject": "Sujet :",
@@ -10961,6 +11063,7 @@ module.exports = {
   "menu refresh label": "Rafraîchir",
   "menu refresh initializing": "Initialisation...",
   "menu refresh cleaning": "Nettoyage...",
+  "menu refresh waiting": "En attente du serveur...",
   "menu refresh indicator": "%{account} : %{mailbox} (%{progress}%)",
   "menu last refresh": "Dernier rafraîchissement le %{date}.",
   "list empty": "Pas d'email dans cette boîte..",
@@ -13142,6 +13245,57 @@ module.exports = DomUtils = {
 };
 });
 
+;require.register("utils/file_utils", function(exports, require, module) {
+var FileUtils;
+
+module.exports = FileUtils = {
+  dataURItoBlob: function(dataURI) {
+    var byteString, i, res, _i, _ref;
+    if (dataURI.split(',')[0].indexOf('base64') >= 0) {
+      byteString = atob(dataURI.split(',')[1]);
+    } else {
+      byteString = window.unescape(dataURI.split(',')[1]);
+    }
+    res = {
+      mime: dataURI.split(',')[0].split(':')[1].split(';')[0],
+      blob: new Uint8Array(byteString.length)
+    };
+    for (i = _i = 0, _ref = byteString.length; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
+      res.blob[i] = byteString.charCodeAt(i);
+    }
+    return res;
+  },
+  fileToDataURI: function(file, cb) {
+    var fileReader;
+    fileReader = new FileReader();
+    fileReader.readAsDataURL(file);
+    return fileReader.onload = function() {
+      return cb(fileReader.result);
+    };
+  }
+};
+});
+
+;require.register("utils/intent_manager", function(exports, require, module) {
+var IntentManager, TIMEOUT;
+
+TIMEOUT = 3000;
+
+module.exports = IntentManager = (function() {
+  function IntentManager() {
+    this.talker = new Talker(window.parent, '*');
+  }
+
+  IntentManager.prototype.send = function(nameSpace, intent, timeout) {
+    this.talker.timeout = timeout ? timeout : TIMEOUT;
+    return this.talker.send('nameSpace', intent);
+  };
+
+  return IntentManager;
+
+})();
+});
+
 ;require.register("utils/message_utils", function(exports, require, module) {
 var COMPOSE_STYLE, ComposeActions, ContactStore, MessageUtils, QUOTE_STYLE;
 
@@ -13252,7 +13406,6 @@ module.exports = MessageUtils = {
     }
     if ((signature != null) && signature.length > 0) {
       isSignature = true;
-      signature = "-- \n" + signature;
     } else {
       isSignature = false;
     }
@@ -13369,12 +13522,12 @@ module.exports = MessageUtils = {
     message.subject = '';
     message.text = '';
     if (isSignature) {
-      message.text += "\n\n" + signature;
+      message.text += "-- \n" + signature;
     }
     message.html = COMPOSE_STYLE;
     if (isSignature) {
       signature = signature.replace(/\n/g, '<br>');
-      message.html += "<p><br /></p><p><br /></p>\n<p id=\"signature\">" + signature + "</p>";
+      message.html += "<p><br /></p><p><br /></p>\n<p id=\"signature\">-- \n<br>" + signature + "</p>";
     }
     return message;
   },
